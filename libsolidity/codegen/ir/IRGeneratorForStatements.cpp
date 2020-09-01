@@ -1397,7 +1397,17 @@ void IRGeneratorForStatements::endVisit(MemberAccess const& _memberAccess)
 		ContractType const& type = dynamic_cast<ContractType const&>(*_memberAccess.expression().annotation().type);
 		if (type.isSuper())
 		{
-			solUnimplementedAssert(false, "");
+			solAssert(!!_memberAccess.annotation().referencedDeclaration, "Referenced declaration not resolved.");
+			ContractDefinition const* super = type.contractDefinition().superContract(m_context.mostDerivedContract());
+			solAssert(super, "Super contract not available.");
+			FunctionDefinition const& resolvedFunctionDef = dynamic_cast<FunctionDefinition const&>(
+				*_memberAccess.annotation().referencedDeclaration
+			).resolveVirtual(m_context.mostDerivedContract(), super);
+
+			define(_memberAccess) << to_string(resolvedFunctionDef.id()) << "\n";
+			solAssert(resolvedFunctionDef.functionType(true), "");
+			solAssert(resolvedFunctionDef.functionType(true)->kind() == FunctionType::Kind::Internal, "");
+			m_context.internalFunctionAccessed(_memberAccess, resolvedFunctionDef);
 		}
 		// ordinary contract type
 		else if (Declaration const* declaration = _memberAccess.annotation().referencedDeclaration)
